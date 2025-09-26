@@ -1,0 +1,723 @@
+<!-- 
+ Next development
+    - Total join in order details
+    - Share server database
+
+-->
+
+
+<!-- Main -->
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Bulk-Cart</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="container">
+    <h1>Bulk-Cart</h1>
+    <p class="subtitle" id="welcome-message">Welcome!</p>
+
+    <!-- Geolocation Section -->
+    <section id="geo-section" style="display:none;">
+        <p>Detecting your location to find your apartment group...</p>
+    </section>
+
+    <!-- Simple Login/Profile Section -->
+    <section id="login-section">
+        <h2>Welcome!</h2>
+        <form id="login-form">
+            <label>
+                Nickname:
+                <input type="text" id="login-nickname" required>
+            </label>
+            <br>
+            <label>
+                Password:
+                <input type="password" id="login-password" required>
+            </label>
+            <br>
+            <button type="submit">Log In</button>
+        </form>
+        <div id="login-error" style="color:red; display:none; margin-top:8px;"></div>
+    </section>
+
+    <!-- Lobby Section (hidden by default) -->
+    <section id="lobby" style="display:none;">
+        <div class="lobby-header">
+            <span class="brand">Bulk-Cart</span>
+            <span class="brand-tagline">Neighborhood group-buy hub</span>
+        </div>
+        <h2 class="lobby-title">Coordinate group orders with neighbors</h2>
+        <div class="lobby-actions">
+            <button id="join-btn" class="lobby-btn">JOIN A GROUP ORDER</button>
+            <button id="create-btn" class="lobby-btn">START A GROUP ORDER</button>
+        </div>
+        <h3 class="orders-title">Current Ongoing Orders:</h3>
+        <ul class="open-orders-list" id="open-orders-list"></ul>
+    </section>
+
+    <!-- Join Order Section (hidden by default) -->
+    <section class="orders" id="join-section" style="display:none;">
+        <button class="back-btn" id="back-from-join">← Back to Lobby</button>
+        <div class="join-section-header">
+            <h2>Open Group Orders</h2>
+            <label class="reference-toggle">
+                <input type="checkbox" id="reference-visibility" checked>
+                <span>Show reference links</span>
+            </label>
+        </div>
+        <div id="order-list" class="order-list"></div>
+    </section>
+
+    <!-- Create Order Section (hidden by default) -->
+    <section id="create-section" style="display:none;">
+        <button class="back-btn" id="back-from-create">← Back to Lobby</button>
+        <h2>Create a New Group Order</h2>
+        <form id="create-order-form" enctype="multipart/form-data">
+            <div class="form-grid">
+                <div class="form-field">
+                    <label for="productName">Product name</label>
+                    <input id="productName" name="productName" type="text" placeholder="Earbuds TWS" required>
+                </div>
+
+                <div class="form-field">
+                    <label for="singlePrice">Product price (Rp)</label>
+                    <input id="singlePrice" name="singlePrice" type="number" min="0" step="1000" placeholder="450000" required>
+                </div>
+
+                <div class="form-field">
+                    <label for="bulkTotalPrice">Total bulk price (Rp)</label>
+                    <input id="bulkTotalPrice" name="bulkTotalPrice" type="number" min="0" step="1000" placeholder="3000000" required>
+                </div>
+
+                <div class="form-field">
+                    <label for="targetQuantity">Target quantity (pcs)</label>
+                    <input id="targetQuantity" name="targetQuantity" type="number" min="1" value="1" required>
+                </div>
+
+                <div class="form-field">
+                    <label for="closingTime">Closing time</label>
+                    <input id="closingTime" name="closingTime" type="datetime-local" required>
+                </div>
+
+                <div class="form-field">
+                    <label for="reference">Reference link (optional)</label>
+                    <input id="reference" name="reference" type="url" placeholder="https://example.com/product">
+                </div>
+
+                <div class="form-field">
+                    <label>Potential bulk price / pcs (auto)</label>
+                    <output data-role="potential-bulk-price-preview">Rp 0</output>
+                </div>
+
+                <div class="form-field">
+                    <label for="productScreenshot">Product screenshot</label>
+                    <input id="productScreenshot" name="productScreenshot" type="file" accept="image/*">
+                    <small>Shown to joiners so they can verify the listing.</small>
+                </div>
+            </div>
+
+            <button type="submit" class="primary-btn">Create Order</button>
+        </form>
+        <div id="create-order-success" class="notice notice--success" style="display:none; margin-top:10px;">
+            ✅ Order created!
+        </div>
+    </section>
+
+    <!-- Order Summary Section -->
+    <section class="summary" id="summary-section" style="display:none;">
+        <h2 id="summary-title">Order Summary</h2>
+        <ul id="summary-list"></ul>
+    </section>
+
+    <!-- Product Detail Modal/Section -->
+    <section id="product-detail-section" style="display:none;">
+        <button class="back-btn" id="back-from-detail" style="margin-bottom:16px;">← Back</button>
+        <h2 id="product-detail-title">Product Detail</h2>
+        <img id="product-detail-image" alt="" style="display:none; max-width:100%; border-radius:12px; margin-bottom:14px;">
+        <p id="product-detail-pricing"></p>
+        <p id="product-detail-target"></p>
+        <p id="product-detail-total"></p>
+        <p id="product-detail-link"></p>
+        <h3>Joiners</h3>
+        <ul id="product-detail-joiners" style="list-style:none; padding:0;"></ul>
+        <ul style="font-size:0.95em; color:#666; margin-top:12px;">
+            <li>• <b>Serious Joiners</b> have deposited 20%</li>
+            <li>• <b>Interested</b> joiners have not deposit yet</li>
+        </ul>
+    </section>
+</div>
+<script>
+/* --- Currency Helpers --- */
+const currencyFormatter = new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    minimumFractionDigits: 0
+});
+
+function formatCurrency(amount) {
+    const value = Number(amount);
+    if (!Number.isFinite(value)) return currencyFormatter.format(0);
+    return currencyFormatter.format(Math.max(0, Math.round(value)));
+}
+
+/* --- Apartment Data --- */
+const apartments = [
+    { code: "P1", name: "Pondok Hijau", lat: -6.85614, lng: 107.58630193253794, radius: 600 },
+    { code: "P2", name: "Paskal Lodge", lat: -6.915746615895051, lng: 107.59299202910456, radius: 600 },
+    { code: "P3", name: "Binus", lat: -6.9155237, lng: 107.593895, radius: 200 },
+    { code: "P4", name: "Sudirman Suites", lat: -6.917769800004064, lng: 107.58132037246446, radius: 600 },
+    { code: "P5", name: "Nyi Empok", lat: -6.921803512891103, lng: 107.59316621102892, radius: 600 },
+    { code: "P6", name: "Sukamenak Indah", lat: -6.968829955357992, lng: 107.58260782423045, radius: 600 },
+    { code: "P7", name: "Taman Cibaduyut", lat: -6.962924046794518, lng: 107.59365068702152, radius: 1500 },
+];
+/* --- DOM Elements --- */
+const geoSection = document.getElementById('geo-section');
+const loginSection = document.getElementById('login-section');
+const loginForm = document.getElementById('login-form');
+const loginNickname = document.getElementById('login-nickname');
+const loginPassword = document.getElementById('login-password');
+const loginError = document.getElementById('login-error');
+const welcomeMessage = document.getElementById('welcome-message');
+const lobby = document.getElementById('lobby');
+const joinBtn = document.getElementById('join-btn');
+const createBtn = document.getElementById('create-btn');
+const joinSection = document.getElementById('join-section');
+const createSection = document.getElementById('create-section');
+const summarySection = document.getElementById('summary-section');
+const backFromJoin = document.getElementById('back-from-join');
+const backFromCreate = document.getElementById('back-from-create');
+const backFromDetail = document.getElementById('back-from-detail');
+const referenceVisibilityToggle = document.getElementById('reference-visibility');
+const ordersList = document.getElementById('order-list');
+const summaryList = document.getElementById('summary-list');
+const createOrderForm = document.getElementById('create-order-form');
+const createOrderSuccess = document.getElementById('create-order-success');
+const productNameInput = document.getElementById('productName');
+const singlePriceInput = document.getElementById('singlePrice');
+const bulkTotalPriceInput = document.getElementById('bulkTotalPrice');
+const targetQuantityInput = document.getElementById('targetQuantity');
+const closingTimeInput = document.getElementById('closingTime');
+const referenceInput = document.getElementById('reference');
+const screenshotInput = document.getElementById('productScreenshot');
+const potentialPreview = document.querySelector('[data-role="potential-bulk-price-preview"]');
+const detailImage = document.getElementById('product-detail-image');
+
+let referenceLinksVisible = true;
+
+/* --- User State --- */
+let currentUserName = sessionStorage.getItem('currentUserName') || null;
+let userApartment = null;
+
+function updateWelcome(name) {
+    welcomeMessage.textContent = name ? `Welcome, ${name}!` : "Welcome!";
+}
+
+updateWelcome(currentUserName);
+
+/* --- Data Model --- */
+let orders = [];
+let orderIdCounter = 1;
+
+/* --- User Profile Helpers --- */
+function getUserProfile(nickname) {
+    const data = localStorage.getItem('groupbuy_user_' + nickname);
+    return data ? JSON.parse(data) : null;
+}
+function saveUserProfile(nickname, password) {
+    localStorage.setItem('groupbuy_user_' + nickname, JSON.stringify({ nickname, password }));
+}
+
+/* --- Persistence Helpers --- */
+function getStorageKey(apartmentCode) {
+    return `groupbuy_orders_${apartmentCode}`;
+}
+function saveOrders() {
+    if (userApartment) {
+        localStorage.setItem(getStorageKey(userApartment.code), JSON.stringify(orders));
+        localStorage.setItem(`groupbuy_orderIdCounter_${userApartment.code}`, orderIdCounter);
+    }
+}
+function loadOrders(apartmentCode) {
+    if (!apartmentCode) return;
+    const data = localStorage.getItem(getStorageKey(apartmentCode));
+    const counter = localStorage.getItem(`groupbuy_orderIdCounter_${apartmentCode}`);
+    if (data) {
+        orders = JSON.parse(data).map(order => {
+            const normalized = {
+                ...order,
+                participants: Array.isArray(order.participants) ? order.participants : [],
+                productPrice: Number(order.productPrice) || 0,
+                targetQuantity: Number(order.targetQuantity) || 0,
+                potentialBulkPrice: Number(order.potentialBulkPrice) || 0,
+                bulkTotalPrice: Number(order.bulkTotalPrice) || 0,
+                ecommerceLink: order.ecommerceLink || '',
+                total: Number(order.total) || 0,
+                productImage: order.productImage || '',
+                unit: 'pcs'
+            };
+            if (!normalized.bulkTotalPrice && normalized.targetQuantity) {
+                normalized.bulkTotalPrice = normalized.potentialBulkPrice * normalized.targetQuantity;
+            }
+            return normalized;
+        });
+        if (orders.length > 0) {
+            const maxId = Math.max(...orders.map(o => Number(o.id) || 0));
+            orderIdCounter = Number.isFinite(maxId) ? maxId + 1 : 1;
+        } else {
+            orderIdCounter = 1;
+        }
+    } else {
+        orders = [];
+        orderIdCounter = 1;
+    }
+    if (counter) {
+        const storedCounter = parseInt(counter, 10);
+        if (!Number.isNaN(storedCounter) && storedCounter >= orderIdCounter) {
+            orderIdCounter = storedCounter;
+        }
+    }
+}
+
+/* --- Geolocation & Apartment Selection --- */
+function getDistanceMeters(lat1, lng1, lat2, lng2) {
+    const R = 6371000;
+    const toRad = x => x * Math.PI / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+        Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+}
+function detectApartment(lat, lng) {
+    for (const apt of apartments) {
+        const dist = getDistanceMeters(lat, lng, apt.lat, apt.lng);
+        if (dist <= apt.radius) return apt;
+    }
+    return null;
+}
+function startApartmentDetection() {
+    geoSection.style.display = '';
+    geoSection.innerHTML = '<p>Detecting your location to find your apartment group...</p>';
+    const canUseGeolocation = navigator.geolocation && window.isSecureContext;
+    if (!canUseGeolocation) {
+        geoSection.innerHTML = '<p>Location detection is unavailable. Please enable secure context and location services.</p>';
+        return;
+    }
+    try {
+        navigator.geolocation.getCurrentPosition(function (pos) {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            const apt = detectApartment(lat, lng);
+            if (apt) {
+                userApartment = apt;
+                geoSection.innerHTML = `<p>Welcome to <strong>${apt.name}</strong> group-buy!</p>`;
+                loadOrders(apt.code);
+                if (orders.length === 0) {
+                    orders = [
+                        {
+                            id: orderIdCounter++,
+                            apartment: apt.code,
+                            product: "Cooking Oil 2L",
+                            productPrice: 65000,
+                            targetQuantity: 12,
+                            potentialBulkPrice: 52000,
+                            bulkTotalPrice: 624000,
+                            ecommerceLink: "https://example.com/cooking-oil",
+                            closingTime: "Tomorrow, 7 PM",
+                            unit: "pcs",
+                            total: 0,
+                            participants: [],
+                            creator: currentUserName,
+                            productImage: ""
+                        }
+                    ];
+                    saveOrders();
+                }
+                setTimeout(showLobby, 1200);
+            } else {
+                geoSection.innerHTML = '<p>We couldn\'t match your location to a supported apartment group.</p>';
+            }
+        }, function () {
+            geoSection.innerHTML = '<p>Location access denied. Please allow location to continue.</p>';
+        });
+    } catch (err) {
+        console.warn('Geolocation not available.', err);
+        geoSection.innerHTML = '<p>Location detection failed. Please refresh and try again.</p>';
+    }
+}
+
+/* --- Login Flow --- */
+if (!currentUserName) {
+    loginSection.style.display = '';
+    geoSection.style.display = 'none';
+    lobby.style.display = 'none';
+    joinSection.style.display = 'none';
+    createSection.style.display = 'none';
+    summarySection.style.display = 'none';
+} else {
+    loginSection.style.display = 'none';
+    startApartmentDetection();
+}
+loginForm.onsubmit = function (e) {
+    e.preventDefault();
+    const nickname = loginNickname.value.trim();
+    const password = loginPassword.value;
+    if (!nickname || !password) return;
+    const profile = getUserProfile(nickname);
+    if (profile) {
+        if (profile.password !== password) {
+            loginError.textContent = "Wrong password!";
+            loginError.style.display = '';
+            return;
+        }
+    } else {
+        saveUserProfile(nickname, password);
+    }
+    currentUserName = nickname;
+    sessionStorage.setItem('currentUserName', nickname);
+    updateWelcome(currentUserName);
+    loginSection.style.display = 'none';
+    startApartmentDetection();
+};
+
+/* --- Navigation --- */
+joinBtn.onclick = function () {
+    lobby.style.display = 'none';
+    joinSection.style.display = '';
+    summarySection.style.display = '';
+    renderOrders();
+};
+createBtn.onclick = function () {
+    lobby.style.display = 'none';
+    createSection.style.display = '';
+};
+backFromJoin.onclick = function () {
+    joinSection.style.display = 'none';
+    summarySection.style.display = 'none';
+    lobby.style.display = '';
+    summaryList.innerHTML = '';
+    renderLobbyOrders();
+};
+backFromCreate.onclick = function () {
+    createSection.style.display = 'none';
+    lobby.style.display = '';
+    createOrderForm.reset();
+    updatePotentialPreview();
+    createOrderSuccess.style.display = 'none';
+    renderLobbyOrders();
+};
+backFromDetail.onclick = function () {
+    document.getElementById('product-detail-section').style.display = 'none';
+    summarySection.style.display = '';
+    lobby.style.display = '';
+    renderLobbyOrders();
+};
+
+if (referenceVisibilityToggle) {
+    referenceVisibilityToggle.addEventListener('change', () => {
+        referenceLinksVisible = referenceVisibilityToggle.checked;
+        renderOrders();
+    });
+}
+
+/* --- Lobby Orders --- */
+function renderLobbyOrders() {
+    const openOrdersList = document.getElementById('open-orders-list');
+    if (!openOrdersList) return;
+    openOrdersList.innerHTML = '';
+    if (!currentUserName) {
+        openOrdersList.innerHTML = '<li>Join or create an order to see them here.</li>';
+        return;
+    }
+    if (!userApartment) {
+        openOrdersList.innerHTML = '<li>Location required to view orders.</li>';
+        return;
+    }
+    let found = false;
+    orders.forEach(order => {
+        if (order.apartment !== userApartment.code) return;
+        const isParticipant = order.participants.some(p => p.name === currentUserName);
+        const isCreator = order.creator === currentUserName;
+        if (isParticipant || isCreator) {
+            found = true;
+            const li = document.createElement('li');
+            li.innerHTML = `
+                <span>${order.product} (Closes: ${order.closingTime})</span>
+                <button class="details-btn" data-order-id="${order.id}">Details</button>
+            `;
+            openOrdersList.appendChild(li);
+
+            li.querySelector('.details-btn').onclick = function () {
+                showProductDetail(order);
+            };
+        }
+    });
+    if (!found) {
+        openOrdersList.innerHTML = '<li>No ongoing orders. Join or create one!</li>';
+    }
+}
+function showLobby() {
+    if (!userApartment) return;
+    geoSection.style.display = 'none';
+    updateWelcome(currentUserName);
+    lobby.style.display = '';
+    renderLobbyOrders();
+}
+
+/* --- Render Orders (Join Section) --- */
+function renderOrders() {
+    if (!ordersList) return;
+    ordersList.innerHTML = '';
+    if (!userApartment) {
+        ordersList.innerHTML = '<p class="empty-state">Location required to view orders.</p>';
+        return;
+    }
+
+    const relevantOrders = orders.filter(order => order.apartment === userApartment.code);
+    if (relevantOrders.length === 0) {
+        ordersList.innerHTML = '<p class="empty-state">No open orders in your apartment yet.</p>';
+        return;
+    }
+
+    relevantOrders.forEach(order => {
+        const card = document.createElement('article');
+        card.className = 'order-card';
+
+        const imageMarkup = order.productImage
+            ? `<div class="order-card__media">
+                    <img src="${order.productImage}" alt="${order.product} screenshot">
+               </div>`
+            : '';
+
+        const targetQty = Number(order.targetQuantity) || 0;
+        const perPiece = formatCurrency(order.potentialBulkPrice);
+        const totalBulk = formatCurrency(order.bulkTotalPrice || 0);
+        const currentTotalId = `order-total-${order.id}`;
+
+        let referenceMarkup = '';
+        if (order.ecommerceLink) {
+            referenceMarkup = referenceLinksVisible
+                ? `<p class="order-card__reference"><strong>Reference:</strong> <a href="${order.ecommerceLink}" target="_blank" rel="noreferrer noopener">${order.ecommerceLink}</a></p>`
+                : `<p class="order-card__reference reference-hidden"><strong>Reference:</strong> Hidden (toggle above to view)</p>`;
+        }
+
+        card.innerHTML = `
+            ${imageMarkup}
+            <div class="order-card__body">
+                <header class="order-card__header">
+                    <h3>${order.product}</h3>
+                    <p class="order-card__closing">Closes: ${order.closingTime}</p>
+                </header>
+                <p class="order-card__meta"><strong>Product Price:</strong> ${formatCurrency(order.productPrice)}</p>
+                <p class="order-card__meta"><strong>Potential Bulk Price:</strong> ${perPiece} / pcs</p>
+                <p class="order-card__meta"><strong>Target Quantity:</strong> ${targetQty.toLocaleString('en-US')} pcs</p>
+                <p class="order-card__meta"><strong>Total Bulk Price:</strong> ${totalBulk}</p>
+                ${referenceMarkup}
+                <p class="order-card__total"><strong>Current Total:</strong> <span id="${currentTotalId}">${order.total}</span> pcs</p>
+                <form class="join-form" data-order-id="${order.id}">
+                    <label>
+                        Quantity (pcs)
+                        <input type="number" name="quantity" min="1" required>
+                    </label>
+                    <div class="form-actions">
+                        <button type="submit">Join Order</button>
+                    </div>
+                </form>
+                <button type="button" class="view-summary-btn" data-order-id="${order.id}">View Summary</button>
+            </div>
+        `;
+
+        const form = card.querySelector('.join-form');
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            if (!currentUserName) {
+                alert('You must be logged in to join an order.');
+                return;
+            }
+            const quantity = parseInt(form.elements['quantity'].value, 10);
+            if (Number.isNaN(quantity) || quantity < 1) {
+                alert('Please enter a valid quantity.');
+                return;
+            }
+            const targetOrder = orders.find(o => o.id == form.dataset.orderId);
+            if (!targetOrder) return;
+
+            let seriousness = prompt("Are you a 'Serious Joiner' or 'Interested'? (Type 'serious' or 'interested')");
+            seriousness = seriousness && seriousness.toLowerCase() === "serious" ? "Serious Joiner" : "Interested";
+
+            const existingParticipant = targetOrder.participants.find(p => p.name === currentUserName);
+            if (existingParticipant) {
+                existingParticipant.quantity += quantity;
+                existingParticipant.status = seriousness;
+            } else {
+                targetOrder.participants.push({ name: currentUserName, quantity, status: seriousness });
+            }
+            targetOrder.total = targetOrder.participants.reduce((sum, p) => sum + (parseInt(p.quantity, 10) || 0), 0);
+            const totalEl = document.getElementById(currentTotalId);
+            if (totalEl) totalEl.textContent = targetOrder.total;
+            form.reset();
+            renderSummary(targetOrder);
+            saveOrders();
+            renderLobbyOrders();
+        });
+
+        const viewSummaryBtn = card.querySelector('.view-summary-btn');
+        viewSummaryBtn.addEventListener('click', function () {
+            const targetOrder = orders.find(o => o.id == viewSummaryBtn.dataset.orderId);
+            if (targetOrder) {
+                renderSummary(targetOrder);
+            }
+        });
+
+        ordersList.appendChild(card);
+    });
+}
+
+/* --- Helpers --- */
+function renderSummary(order) {
+    summarySection.style.display = '';
+    const summaryTitle = document.getElementById('summary-title');
+    summaryTitle.textContent = `Order Summary: ${order.product}`;
+    summaryList.innerHTML = '';
+    if (!order.participants || order.participants.length === 0) {
+        summaryList.innerHTML = '<li>No one has joined this order yet.</li>';
+    } else {
+        order.participants.forEach(p => {
+            const li = document.createElement('li');
+            li.textContent = `${p.name} (${p.status}) ordered ${p.quantity} pcs`;
+            summaryList.appendChild(li);
+        });
+    }
+}
+
+/* --- Create Order Logic --- */
+function calculatePerMemberPrice() {
+    const total = Number(bulkTotalPriceInput.value) || 0;
+    const qty = Number(targetQuantityInput.value) || 0;
+    if (!total || !qty) return 0;
+    return total / qty;
+}
+function updatePotentialPreview() {
+    potentialPreview.textContent = formatCurrency(calculatePerMemberPrice());
+}
+bulkTotalPriceInput.addEventListener('input', updatePotentialPreview);
+targetQuantityInput.addEventListener('input', updatePotentialPreview);
+
+createOrderForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!userApartment) {
+        alert('Location required to create orders.');
+        return;
+    }
+
+    const product = productNameInput.value.trim();
+    const singlePrice = Number(singlePriceInput.value);
+    const totalBulkPrice = Number(bulkTotalPriceInput.value);
+    const targetQuantity = Number(targetQuantityInput.value);
+    const closingTimeValue = closingTimeInput.value;
+    const referenceLink = referenceInput.value.trim();
+
+    if (!product || !closingTimeValue || Number.isNaN(singlePrice) || Number.isNaN(totalBulkPrice) || Number.isNaN(targetQuantity) || targetQuantity < 1) {
+        alert('Please fill all required fields with valid values.');
+        return;
+    }
+
+    const perMemberPrice = calculatePerMemberPrice();
+    const screenshotFile = screenshotInput.files[0];
+    const productImage = screenshotFile ? await fileToDataURL(screenshotFile) : '';
+
+    const closingTimeDisplay = new Date(closingTimeValue).toLocaleString();
+
+    orders.push({
+        id: orderIdCounter++,
+        apartment: userApartment.code,
+        product,
+        productPrice: singlePrice,
+        targetQuantity,
+        unit: 'pcs',
+        potentialBulkPrice: perMemberPrice,
+        bulkTotalPrice: totalBulkPrice,
+        ecommerceLink: referenceLink,
+        closingTime: closingTimeDisplay,
+        total: 0,
+        participants: [],
+        creator: currentUserName,
+        productImage
+    });
+
+    createOrderSuccess.style.display = 'block';
+    createOrderForm.reset();
+    updatePotentialPreview();
+    saveOrders();
+    renderLobbyOrders();
+    renderOrders();
+});
+
+function fileToDataURL(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+/* --- Product Detail Section --- */
+function showProductDetail(order) {
+    lobby.style.display = 'none';
+    joinSection.style.display = 'none';
+    createSection.style.display = 'none';
+    summarySection.style.display = 'none';
+    const detailSection = document.getElementById('product-detail-section');
+    detailSection.style.display = '';
+
+    document.getElementById('product-detail-title').textContent = `Product Detail: ${order.product}`;
+    document.getElementById('product-detail-pricing').textContent = `Price: ${formatCurrency(order.productPrice)} | Bulk Price: ${formatCurrency(order.potentialBulkPrice)} per pcs`;
+    document.getElementById('product-detail-target').textContent = `Target quantity: ${Number(order.targetQuantity || 0).toLocaleString('en-US')} pcs`;
+    document.getElementById('product-detail-total').textContent = `Total bulk price: ${formatCurrency(order.bulkTotalPrice || 0)}`;
+    const linkEl = document.getElementById('product-detail-link');
+    if (order.ecommerceLink) {
+        linkEl.innerHTML = `Reference: <a href="${order.ecommerceLink}" target="_blank" rel="noreferrer noopener">${order.ecommerceLink}</a>`;
+    } else {
+        linkEl.textContent = 'Reference not provided.';
+    }
+
+    if (detailImage) {
+        if (order.productImage) {
+            detailImage.src = order.productImage;
+            detailImage.alt = `${order.product} screenshot`;
+            detailImage.style.display = '';
+        } else {
+            detailImage.style.display = 'none';
+            detailImage.removeAttribute('src');
+        }
+    }
+
+    const joinersList = document.getElementById('product-detail-joiners');
+    joinersList.innerHTML = '';
+    if (!order.participants || order.participants.length === 0) {
+        joinersList.innerHTML = '<li>No joiners yet.</li>';
+    } else {
+        order.participants.forEach(p => {
+            const status = p.status || "Interested";
+            joinersList.innerHTML += `
+                <li>
+                    <span class="joiner-avatar"></span>
+                    <span>${p.name}</span>
+                    <span class="joiner-status">${status}</span>
+                </li>
+            `;
+        });
+    }
+}
+
+/* --- Initialise --- */
+updatePotentialPreview();
+</script>
+</body>
+</html>

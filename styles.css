@@ -1,0 +1,480 @@
+/* styles.css */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: "Segoe UI", Arial, sans-serif;
+    background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 60%, #e2e8f0 100%);
+    color: #1f2933;
+}
+
+h1, h2, h3 {
+    margin-top: 0;
+    color: #0f172a;
+}
+
+a {
+    color: #2563eb;
+    transition: color 0.2s ease;
+}
+
+a:hover {
+    text-decoration: underline;
+    color: #1d4ed8;
+}
+
+.container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 24px 16px 48px;
+    min-height: 100vh;
+}
+
+.subtitle {
+    margin-bottom: 24px;
+    color: #4b5563;
+}
+
+section {
+    margin-bottom: 32px;
+}
+
+button {
+    cursor: pointer;
+    border: none;
+    border-radius: 14px;
+    padding: 10px 18px;
+    background: #2563eb;
+    color: #ffffff;
+    font-weight: 600;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+button:hover {
+    background: #1d4ed8;
+    transform: translateY(-1px);
+    box-shadow: 0 12px 22px rgba(37, 99, 235, 0.15);
+}
+
+button:active {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+button.lobby-btn {
+    min-width: 190px;
+}
+
+.back-btn {
+    background: none;
+    color: #2563eb;
+    padding: 0;
+    margin-bottom: 12px;
+    font-weight: 600;
+}
+
+.back-btn:hover {
+    text-decoration: underline;
+    background: none;
+    box-shadow: none;
+    transform: none;
+}
+
+/* --- Minimalist Auth --- */
+#login-section {
+    max-width: 360px;
+    margin: 48px auto;
+    padding: 32px;
+    border-radius: 22px;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    backdrop-filter: blur(12px);
+    background: rgba(255, 255, 255, 0.82);
+    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+    display: grid;
+    gap: 22px;
+    text-align: left;
+}
+
+#login-section h2 {
+    margin: 0;
+    font-size: 1.6rem;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+#login-section label {
+    display: grid;
+    gap: 6px;
+    font-size: 0.9rem;
+    color: #475569;
+}
+
+#login-section input {
+    border: 1px solid rgba(203, 213, 225, 0.9);
+    border-radius: 14px;
+    padding: 12px 14px;
+    font-size: 0.95rem;
+    background: rgba(255, 255, 255, 0.78);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#login-section input:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+}
+
+#login-section button {
+    margin-top: 6px;
+    width: 100%;
+    padding: 12px 0;
+    border-radius: 16px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    box-shadow: 0 14px 28px rgba(37, 99, 235, 0.22);
+}
+
+#login-section button:hover {
+    box-shadow: 0 16px 32px rgba(37, 99, 235, 0.28);
+}
+
+#login-error {
+    font-size: 0.85rem;
+    color: #dc2626;
+}
+
+/* --- Minimalist Lobby --- */
+#lobby {
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 28px;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    box-shadow: 0 22px 50px rgba(15, 23, 42, 0.08);
+    padding: 32px 36px;
+    display: grid;
+    gap: 22px;
+}
+
+.lobby-header {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.brand {
+    font-size: 1.4rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.brand-tagline {
+    font-size: 0.95rem;
+    color: #64748b;
+}
+
+.lobby-title {
+    font-size: 1.45rem;
+    font-weight: 600;
+    color: #0f172a;
+    margin: 0;
+}
+
+.lobby-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 4px 0 12px;
+}
+
+.lobby-btn {
+    border-radius: 18px;
+    padding: 12px 20px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    background: #2563eb;
+}
+
+.open-orders-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 12px;
+}
+
+.open-orders-list li {
+    padding: 16px 18px;
+    border: 1px solid rgba(203, 213, 225, 0.6);
+    border-radius: 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(248, 250, 252, 0.92);
+}
+
+.details-btn {
+    background: #0ea5e9;
+    border-radius: 12px;
+    padding: 8px 14px;
+    box-shadow: none;
+}
+
+.details-btn:hover {
+    background: #0284c7;
+    box-shadow: 0 8px 16px rgba(14, 165, 233, 0.2);
+}
+
+/* --- Orders & Forms --- */
+.orders {
+    background: rgba(248, 250, 252, 0.92);
+    padding: 22px;
+    border-radius: 20px;
+    border: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.join-section-header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.reference-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: #0f172a;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(248, 250, 252, 0.9);
+    border: 1px solid rgba(209, 213, 219, 0.7);
+}
+
+.reference-toggle input {
+    accent-color: #2563eb;
+}
+
+.order-list {
+    display: grid;
+    gap: 18px;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.order-card {
+    display: flex;
+    gap: 16px;
+    background: #ffffff;
+    border: 1px solid rgba(226, 232, 240, 0.95);
+    border-radius: 18px;
+    padding: 18px;
+    box-shadow: 0 14px 40px rgba(15, 23, 42, 0.05);
+}
+
+.order-card__media img {
+    width: 132px;
+    height: 132px;
+    object-fit: cover;
+    border-radius: 14px;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.order-card__body {
+    flex: 1;
+    display: grid;
+    gap: 8px;
+    align-content: start;
+}
+
+.order-card__header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.order-card__closing {
+    margin: 2px 0 0;
+    color: #6b7280;
+    font-size: 0.9rem;
+}
+
+.order-card__meta,
+.order-card__reference,
+.order-card__total {
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.45;
+}
+
+.order-card__reference.reference-hidden {
+    color: #9ca3af;
+}
+
+.form-grid {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.form-field input,
+.form-field output {
+    padding: 10px;
+    border: 1px solid #cbd5f5;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    background: #f9fafb;
+}
+
+.form-field small {
+    color: #6b7280;
+    font-size: 0.8rem;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-start;
+    margin-top: 8px;
+}
+
+.join-form {
+    display: grid;
+    gap: 8px;
+    margin-top: 6px;
+}
+
+.join-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-weight: 600;
+}
+
+.join-form input {
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid #cbd5f5;
+    font-size: 0.95rem;
+    background: #ffffff;
+}
+
+.join-form button {
+    align-self: start;
+}
+
+.view-summary-btn {
+    background: #475569;
+    margin-top: 4px;
+}
+
+.view-summary-btn:hover {
+    background: #334155;
+}
+
+.notice {
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+.notice--success {
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+}
+
+.summary {
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    padding: 18px;
+}
+
+.summary ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.summary li {
+    padding: 8px 0;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.summary li:last-child {
+    border-bottom: none;
+}
+
+.empty-state {
+    padding: 18px;
+    border-radius: 12px;
+    background: rgba(241, 245, 249, 0.9);
+    color: #475569;
+    text-align: center;
+}
+
+.primary-btn {
+    margin-top: 18px;
+    width: 220px;
+}
+
+.notice,
+.form-field input,
+.join-form input {
+    font-family: inherit;
+}
+
+#product-detail-section {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 18px;
+    border: 1px solid #e5e7eb;
+}
+
+#product-detail-joiners li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+}
+
+.joiner-avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #cbd5f5;
+}
+
+.joiner-status {
+    margin-left: auto;
+    font-size: 0.85rem;
+    color: #475569;
+}
+
+@media (max-width: 640px) {
+    .lobby-actions {
+        flex-direction: column;
+    }
+    .order-card {
+        flex-direction: column;
+    }
+    .order-card__media img {
+        width: 100%;
+        height: 200px;
+    }
+    #lobby {
+        padding: 26px 24px;
+    }
+    #login-section {
+        margin: 32px auto;
+        padding: 26px;
+    }
+}
