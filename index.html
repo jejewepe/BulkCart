@@ -1,12 +1,3 @@
-<!-- 
- Next development
-    - Total join in order details
-    - Share server database
-
--->
-
-
-<!-- Main -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -149,6 +140,13 @@
         </ul>
     </section>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  const supabaseUrl = 'https://sxklzvuguygsmivrlvuw.supabase.co';
+  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4a2x6dnVndXlnc21pdnJsdnV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg4NzUwNzYsImV4cCI6MjA3NDQ1MTA3Nn0.oc-fa2RLMKspdf6JBj2By3NJzwQC4IIJsmsznfHVs0c';
+  const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+</script>
+
 <script>
 /* --- Currency Helpers --- */
 const currencyFormatter = new Intl.NumberFormat('id-ID', {
@@ -173,6 +171,7 @@ const apartments = [
     { code: "P6", name: "Sukamenak Indah", lat: -6.968829955357992, lng: 107.58260782423045, radius: 600 },
     { code: "P7", name: "Taman Cibaduyut", lat: -6.962924046794518, lng: 107.59365068702152, radius: 1500 },
 ];
+
 /* --- DOM Elements --- */
 const geoSection = document.getElementById('geo-section');
 const loginSection = document.getElementById('login-section');
@@ -217,9 +216,70 @@ function updateWelcome(name) {
 
 updateWelcome(currentUserName);
 
-/* --- Data Model --- */
+/* --- Shared Orders State --- */
 let orders = [];
-let orderIdCounter = 1;
+
+/* --- Supabase Helpers --- */
+function mapOrderRow(row) {
+    const closingISO = row.closing_time || null;
+    let closingDisplay = '';
+    if (closingISO) {
+        const parsed = new Date(closingISO);
+        if (!Number.isNaN(parsed.getTime())) {
+            closingDisplay = parsed.toLocaleString();
+        }
+    }
+    return {
+        id: row.id,
+        apartment: row.apartment_code,
+        product: row.product,
+        productPrice: Number(row.product_price) || 0,
+        targetQuantity: Number(row.target_quantity) || 0,
+        potentialBulkPrice: Number(row.potential_bulk_price) || 0,
+        bulkTotalPrice: Number(row.bulk_total_price) || 0,
+        ecommerceLink: row.ecommerce_link || '',
+        closingTimeISO: closingISO,
+        closingTime: closingDisplay,
+        total: Number(row.total) || 0,
+        participants: Array.isArray(row.participants) ? row.participants : [],
+        creator: row.creator || '',
+        productImage: row.product_image || '',
+        unit: 'pcs'
+    };
+}
+
+async function loadOrders(apartmentCode) {
+    if (!apartmentCode) {
+        orders = [];
+        return;
+    }
+    const { data, error } = await supabaseClient
+        .from('orders')
+        .select('*')
+        .eq('apartment_code', apartmentCode)
+        .order('inserted_at', { ascending: false });
+
+    if (error) {
+        console.error('Failed to load orders', error);
+        orders = [];
+        return;
+    }
+
+    orders = (data || []).map(mapOrderRow);
+}
+
+async function createOrderRecord(payload) {
+    const { error } = await supabaseClient.from('orders').insert(payload);
+    if (error) throw error;
+}
+
+async function updateOrderRecord(orderId, changes) {
+    const { error } = await supabaseClient
+        .from('orders')
+        .update(changes)
+        .eq('id', orderId);
+    if (error) throw error;
+}
 
 /* --- User Profile Helpers --- */
 function getUserProfile(nickname) {
@@ -228,57 +288,6 @@ function getUserProfile(nickname) {
 }
 function saveUserProfile(nickname, password) {
     localStorage.setItem('groupbuy_user_' + nickname, JSON.stringify({ nickname, password }));
-}
-
-/* --- Persistence Helpers --- */
-function getStorageKey(apartmentCode) {
-    return `groupbuy_orders_${apartmentCode}`;
-}
-function saveOrders() {
-    if (userApartment) {
-        localStorage.setItem(getStorageKey(userApartment.code), JSON.stringify(orders));
-        localStorage.setItem(`groupbuy_orderIdCounter_${userApartment.code}`, orderIdCounter);
-    }
-}
-function loadOrders(apartmentCode) {
-    if (!apartmentCode) return;
-    const data = localStorage.getItem(getStorageKey(apartmentCode));
-    const counter = localStorage.getItem(`groupbuy_orderIdCounter_${apartmentCode}`);
-    if (data) {
-        orders = JSON.parse(data).map(order => {
-            const normalized = {
-                ...order,
-                participants: Array.isArray(order.participants) ? order.participants : [],
-                productPrice: Number(order.productPrice) || 0,
-                targetQuantity: Number(order.targetQuantity) || 0,
-                potentialBulkPrice: Number(order.potentialBulkPrice) || 0,
-                bulkTotalPrice: Number(order.bulkTotalPrice) || 0,
-                ecommerceLink: order.ecommerceLink || '',
-                total: Number(order.total) || 0,
-                productImage: order.productImage || '',
-                unit: 'pcs'
-            };
-            if (!normalized.bulkTotalPrice && normalized.targetQuantity) {
-                normalized.bulkTotalPrice = normalized.potentialBulkPrice * normalized.targetQuantity;
-            }
-            return normalized;
-        });
-        if (orders.length > 0) {
-            const maxId = Math.max(...orders.map(o => Number(o.id) || 0));
-            orderIdCounter = Number.isFinite(maxId) ? maxId + 1 : 1;
-        } else {
-            orderIdCounter = 1;
-        }
-    } else {
-        orders = [];
-        orderIdCounter = 1;
-    }
-    if (counter) {
-        const storedCounter = parseInt(counter, 10);
-        if (!Number.isNaN(storedCounter) && storedCounter >= orderIdCounter) {
-            orderIdCounter = storedCounter;
-        }
-    }
 }
 
 /* --- Geolocation & Apartment Selection --- */
@@ -300,6 +309,18 @@ function detectApartment(lat, lng) {
     }
     return null;
 }
+
+async function handleApartmentDetected(apt) {
+    userApartment = apt;
+    geoSection.innerHTML = `<p>Welcome to <strong>${apt.name}</strong> group-buy!</p>`;
+    try {
+        await loadOrders(apt.code);
+    } catch (error) {
+        console.error('Error loading remote orders', error);
+    }
+    setTimeout(showLobby, 1200);
+}
+
 function startApartmentDetection() {
     geoSection.style.display = '';
     geoSection.innerHTML = '<p>Detecting your location to find your apartment group...</p>';
@@ -314,37 +335,16 @@ function startApartmentDetection() {
             const lng = pos.coords.longitude;
             const apt = detectApartment(lat, lng);
             if (apt) {
-                userApartment = apt;
-                geoSection.innerHTML = `<p>Welcome to <strong>${apt.name}</strong> group-buy!</p>`;
-                loadOrders(apt.code);
-                if (orders.length === 0) {
-                    orders = [
-                        {
-                            id: orderIdCounter++,
-                            apartment: apt.code,
-                            product: "Cooking Oil 2L",
-                            productPrice: 65000,
-                            targetQuantity: 12,
-                            potentialBulkPrice: 52000,
-                            bulkTotalPrice: 624000,
-                            ecommerceLink: "https://example.com/cooking-oil",
-                            closingTime: "Tomorrow, 7 PM",
-                            unit: "pcs",
-                            total: 0,
-                            participants: [],
-                            creator: currentUserName,
-                            productImage: ""
-                        }
-                    ];
-                    saveOrders();
-                }
-                setTimeout(showLobby, 1200);
+                handleApartmentDetected(apt).catch(err => {
+                    console.error('Failed to initialise apartment', err);
+                    geoSection.innerHTML = '<p>Could not load orders for your apartment. Please retry.</p>';
+                });
             } else {
                 geoSection.innerHTML = '<p>We couldn\'t match your location to a supported apartment group.</p>';
             }
         }, function () {
             geoSection.innerHTML = '<p>Location access denied. Please allow location to continue.</p>';
-        });
+        }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 });
     } catch (err) {
         console.warn('Geolocation not available.', err);
         geoSection.innerHTML = '<p>Location detection failed. Please refresh and try again.</p>';
@@ -447,7 +447,7 @@ function renderLobbyOrders() {
             found = true;
             const li = document.createElement('li');
             li.innerHTML = `
-                <span>${order.product} (Closes: ${order.closingTime})</span>
+                <span>${order.product} (Closes: ${order.closingTime || 'TBA'})</span>
                 <button class="details-btn" data-order-id="${order.id}">Details</button>
             `;
             openOrdersList.appendChild(li);
@@ -511,7 +511,7 @@ function renderOrders() {
             <div class="order-card__body">
                 <header class="order-card__header">
                     <h3>${order.product}</h3>
-                    <p class="order-card__closing">Closes: ${order.closingTime}</p>
+                    <p class="order-card__closing">Closes: ${order.closingTime || 'TBA'}</p>
                 </header>
                 <p class="order-card__meta"><strong>Product Price:</strong> ${formatCurrency(order.productPrice)}</p>
                 <p class="order-card__meta"><strong>Potential Bulk Price:</strong> ${perPiece} / pcs</p>
@@ -533,7 +533,7 @@ function renderOrders() {
         `;
 
         const form = card.querySelector('.join-form');
-        form.addEventListener('submit', function (e) {
+        form.addEventListener('submit', async function (e) {
             e.preventDefault();
             if (!currentUserName) {
                 alert('You must be logged in to join an order.');
@@ -558,12 +558,21 @@ function renderOrders() {
                 targetOrder.participants.push({ name: currentUserName, quantity, status: seriousness });
             }
             targetOrder.total = targetOrder.participants.reduce((sum, p) => sum + (parseInt(p.quantity, 10) || 0), 0);
-            const totalEl = document.getElementById(currentTotalId);
-            if (totalEl) totalEl.textContent = targetOrder.total;
-            form.reset();
-            renderSummary(targetOrder);
-            saveOrders();
-            renderLobbyOrders();
+
+            try {
+                await updateOrderRecord(targetOrder.id, {
+                    participants: targetOrder.participants,
+                    total: targetOrder.total
+                });
+                await loadOrders(userApartment.code);
+                renderLobbyOrders();
+                renderOrders();
+                const refreshed = orders.find(o => o.id === targetOrder.id);
+                renderSummary(refreshed || targetOrder);
+            } catch (error) {
+                console.error('Could not update order', error);
+                alert('Could not update the order. Please retry.');
+            }
         });
 
         const viewSummaryBtn = card.querySelector('.view-summary-btn');
@@ -582,6 +591,11 @@ function renderOrders() {
 function renderSummary(order) {
     summarySection.style.display = '';
     const summaryTitle = document.getElementById('summary-title');
+    if (!order) {
+        summaryTitle.textContent = 'Order Summary';
+        summaryList.innerHTML = '<li>Order not found.</li>';
+        return;
+    }
     summaryTitle.textContent = `Order Summary: ${order.product}`;
     summaryList.innerHTML = '';
     if (!order.participants || order.participants.length === 0) {
@@ -631,31 +645,35 @@ createOrderForm.addEventListener('submit', async (e) => {
     const screenshotFile = screenshotInput.files[0];
     const productImage = screenshotFile ? await fileToDataURL(screenshotFile) : '';
 
-    const closingTimeDisplay = new Date(closingTimeValue).toLocaleString();
+    const closingTimeISO = new Date(closingTimeValue).toISOString();
 
-    orders.push({
-        id: orderIdCounter++,
-        apartment: userApartment.code,
+    const payload = {
+        apartment_code: userApartment.code,
         product,
-        productPrice: singlePrice,
-        targetQuantity,
-        unit: 'pcs',
-        potentialBulkPrice: perMemberPrice,
-        bulkTotalPrice: totalBulkPrice,
-        ecommerceLink: referenceLink,
-        closingTime: closingTimeDisplay,
+        product_price: singlePrice,
+        target_quantity: targetQuantity,
+        potential_bulk_price: perMemberPrice,
+        bulk_total_price: totalBulkPrice,
+        ecommerce_link: referenceLink || null,
+        closing_time: closingTimeISO,
         total: 0,
         participants: [],
         creator: currentUserName,
-        productImage
-    });
+        product_image: productImage || null
+    };
 
-    createOrderSuccess.style.display = 'block';
-    createOrderForm.reset();
-    updatePotentialPreview();
-    saveOrders();
-    renderLobbyOrders();
-    renderOrders();
+    try {
+        await createOrderRecord(payload);
+        await loadOrders(userApartment.code);
+        renderLobbyOrders();
+        renderOrders();
+        createOrderSuccess.style.display = 'block';
+        createOrderForm.reset();
+        updatePotentialPreview();
+    } catch (error) {
+        console.error('Failed to create order', error);
+        alert('Failed to create order. Please try again.');
+    }
 });
 
 function fileToDataURL(file) {
