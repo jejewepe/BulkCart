@@ -15,6 +15,23 @@
         <p>Detecting your location to find your apartment group...</p>
     </section>
 
+    <!-- Manual Apartment Fallback -->
+    <section id="manual-apartment" style="display:none;">
+        <h3>Select your apartment</h3>
+        <p>We couldn’t get an accurate fix. Pick your building to continue.</p>
+        <select id="manual-apartment-select">
+            <option value="">Choose one…</option>
+            <option value="P1">Pondok Hijau</option>
+            <option value="P2">Paskal Lodge</option>
+            <option value="P3">Binus</option>
+            <option value="P4">Sudirman Suites</option>
+            <option value="P5">Nyi Empok</option>
+            <option value="P6">Sukamenak Indah</option>
+            <option value="P7">Taman Cibaduyut</option>
+        </select>
+        <button id="manual-apartment-confirm">Continue</button>
+    </section>
+
     <!-- Simple Login/Profile Section -->
     <section id="login-section">
         <h2>Welcome!</h2>
@@ -163,13 +180,12 @@ function formatCurrency(amount) {
 
 /* --- Apartment Data --- */
 const apartments = [
-    { code: "P1", name: "Pondok Hijau", lat: -6.85614, lng: 107.58630193253794, radius: 600 },
-    { code: "P2", name: "Paskal Lodge", lat: -6.915746615895051, lng: 107.59299202910456, radius: 600 },
-    { code: "P3", name: "Binus", lat: -6.9155237, lng: 107.593895, radius: 200 },
-    { code: "P4", name: "Sudirman Suites", lat: -6.917769800004064, lng: 107.58132037246446, radius: 600 },
-    { code: "P5", name: "Nyi Empok", lat: -6.921803512891103, lng: 107.59316621102892, radius: 600 },
-    { code: "P6", name: "Sukamenak Indah", lat: -6.968829955357992, lng: 107.58260782423045, radius: 600 },
-    { code: "P7", name: "Taman Cibaduyut", lat: -6.962924046794518, lng: 107.59365068702152, radius: 1500 },
+    { code: "P1", name: "Pondok Hijau", lat: -6.85614, lng: 107.58630193253794, radius: 3000 },
+    { code: "P2", name: "Paskal Lodge", lat: -6.915746615895051, lng: 107.59299202910456, radius: 3000 },
+    { code: "P4", name: "Sudirman Suites", lat: -6.917769800004064, lng: 107.58132037246446, radius: 3000 },
+    { code: "P5", name: "Nyi Empok", lat: -6.921803512891103, lng: 107.59316621102892, radius: 3000 },
+    { code: "P6", name: "Sukamenak Indah", lat: -6.968829955357992, lng: 107.58260782423045, radius: 3000 },
+    { code: "P7", name: "Taman Cibaduyut", lat: -6.962924046794518, lng: 107.59365068702152, radius: 3000 },
 ];
 
 /* --- DOM Elements --- */
@@ -203,6 +219,9 @@ const referenceInput = document.getElementById('reference');
 const screenshotInput = document.getElementById('productScreenshot');
 const potentialPreview = document.querySelector('[data-role="potential-bulk-price-preview"]');
 const detailImage = document.getElementById('product-detail-image');
+const manualApartmentSection = document.getElementById('manual-apartment');
+const manualApartmentSelect = document.getElementById('manual-apartment-select');
+const manualApartmentConfirm = document.getElementById('manual-apartment-confirm');
 
 let referenceLinksVisible = true;
 
@@ -320,36 +339,82 @@ async function handleApartmentDetected(apt) {
     }
     setTimeout(showLobby, 1200);
 }
+const ACCURACY_THRESHOLD = 600;   // meters; tighten as needed
+const GEO_MAX_ATTEMPTS = 3;
+let geoAttempts = 0;
+let geoWatchId = null;
 
-function startApartmentDetection() {
-    geoSection.style.display = '';
-    geoSection.innerHTML = '<p>Detecting your location to find your apartment group...</p>';
-    const canUseGeolocation = navigator.geolocation && window.isSecureContext;
-    if (!canUseGeolocation) {
-        geoSection.innerHTML = '<p>Location detection is unavailable. Please enable secure context and location services.</p>';
-        return;
-    }
-    try {
-        navigator.geolocation.getCurrentPosition(function (pos) {
-            const lat = pos.coords.latitude;
-            const lng = pos.coords.longitude;
-            const apt = detectApartment(lat, lng);
-            if (apt) {
-                handleApartmentDetected(apt).catch(err => {
-                    console.error('Failed to initialise apartment', err);
-                    geoSection.innerHTML = '<p>Could not load orders for your apartment. Please retry.</p>';
-                });
-            } else {
-                geoSection.innerHTML = '<p>We couldn\'t match your location to a supported apartment group.</p>';
-            }
-        }, function () {
-            geoSection.innerHTML = '<p>Location access denied. Please allow location to continue.</p>';
-        }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 });
-    } catch (err) {
-        console.warn('Geolocation not available.', err);
-        geoSection.innerHTML = '<p>Location detection failed. Please refresh and try again.</p>';
+function stopGeoWatch() {
+    if (geoWatchId !== null) {
+        navigator.geolocation.clearWatch(geoWatchId);
+        geoWatchId = null;
     }
 }
+
+function showManualApartmentPicker(message) {
+    stopGeoWatch();
+    manualApartmentSection.style.display = '';
+    if (message) geoSection.innerHTML = `<p>${message}</p>`;
+}
+
+manualApartmentConfirm.addEventListener('click', async () => {
+    const code = manualApartmentSelect.value;
+    if (!code) {
+        alert('Please choose an apartment first.');
+        return;
+    }
+    const apt = apartments.find(a => a.code === code);
+    if (!apt) return;
+    manualApartmentSection.style.display = 'none';
+    manualApartmentSelect.value = '';
+    await handleApartmentDetected(apt);
+});
+
+
+function startApartmentDetection() {
+    geoAttempts = 0;
+    geoSection.style.display = '';
+    manualApartmentSection.style.display = 'none';
+    geoSection.innerHTML = '<p>Detecting your location to find your apartment group...</p>';
+
+    const canUseGeolocation = navigator.geolocation && window.isSecureContext;
+    if (!canUseGeolocation) {
+        showManualApartmentPicker('Location detection is unavailable. Please select your apartment below.');
+        return;
+    }
+
+    const geoOptions = {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0
+    };
+
+    const handlePosition = async (pos) => {
+        const { latitude, longitude, accuracy } = pos.coords;
+        console.log('Geolocation fix', latitude, longitude, '±', Math.round(accuracy), 'm');
+
+        const apt = detectApartment(latitude, longitude);
+
+        if (apt && accuracy <= ACCURACY_THRESHOLD) {
+            stopGeoWatch();
+            await handleApartmentDetected(apt);
+        } else if (geoAttempts >= GEO_MAX_ATTEMPTS) {
+            showManualApartmentPicker('We couldn’t get a precise fix. Please select your apartment below.');
+        } else {
+            geoAttempts += 1;
+            geoSection.innerHTML = `<p>Location accuracy is ±${Math.round(accuracy)} m. Retrying (${geoAttempts}/${GEO_MAX_ATTEMPTS})…</p>`;
+        }
+    };
+
+    const handleError = (err) => {
+        console.warn('Geolocation error', err);
+        showManualApartmentPicker('Location access failed. Please allow location or pick your apartment below.');
+    };
+
+    navigator.geolocation.getCurrentPosition(handlePosition, handleError, geoOptions);
+    geoWatchId = navigator.geolocation.watchPosition(handlePosition, handleError, geoOptions);
+}
+
 
 /* --- Login Flow --- */
 if (!currentUserName) {
