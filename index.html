@@ -13,6 +13,7 @@
     <!-- Geolocation Section -->
     <section id="geo-section" style="display:none;">
         <p>Detecting your location to find your apartment group...</p>
+        <button id="retry-geolocation" style="display:none;">Try location again</button>
     </section>
 
     <!-- Manual Apartment Fallback -->
@@ -190,6 +191,7 @@ const apartments = [
 
 /* --- DOM Elements --- */
 const geoSection = document.getElementById('geo-section');
+const retryGeoBtn = document.getElementById('retry-geolocation');
 const loginSection = document.getElementById('login-section');
 const loginForm = document.getElementById('login-form');
 const loginNickname = document.getElementById('login-nickname');
@@ -351,10 +353,16 @@ function stopGeoWatch() {
     }
 }
 
-function showManualApartmentPicker(message) {
+function resetGeoUI(message) {
     stopGeoWatch();
+    geoSection.innerHTML = `<p>${message}</p>`;
+    geoSection.appendChild(retryGeoBtn);
+    retryGeoBtn.style.display = '';
+}
+
+function showManualApartmentPicker(message) {
+    resetGeoUI(message || 'We couldn’t get an accurate fix. Please select your apartment below.');
     manualApartmentSection.style.display = '';
-    if (message) geoSection.innerHTML = `<p>${message}</p>`;
 }
 
 manualApartmentConfirm.addEventListener('click', async () => {
@@ -367,15 +375,22 @@ manualApartmentConfirm.addEventListener('click', async () => {
     if (!apt) return;
     manualApartmentSection.style.display = 'none';
     manualApartmentSelect.value = '';
+    retryGeoBtn.style.display = 'none';
     await handleApartmentDetected(apt);
 });
 
+retryGeoBtn.addEventListener('click', () => {
+    retryGeoBtn.style.display = 'none';
+    startApartmentDetection();
+});
 
 function startApartmentDetection() {
     geoAttempts = 0;
     geoSection.style.display = '';
     manualApartmentSection.style.display = 'none';
     geoSection.innerHTML = '<p>Detecting your location to find your apartment group...</p>';
+    geoSection.appendChild(retryGeoBtn);
+    retryGeoBtn.style.display = 'none';
 
     const canUseGeolocation = navigator.geolocation && window.isSecureContext;
     if (!canUseGeolocation) {
@@ -383,32 +398,35 @@ function startApartmentDetection() {
         return;
     }
 
-    const geoOptions = {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 0
-    };
+    const geoOptions = { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 };
 
     const handlePosition = async (pos) => {
         const { latitude, longitude, accuracy } = pos.coords;
         console.log('Geolocation fix', latitude, longitude, '±', Math.round(accuracy), 'm');
 
         const apt = detectApartment(latitude, longitude);
-
         if (apt && accuracy <= ACCURACY_THRESHOLD) {
             stopGeoWatch();
+            retryGeoBtn.style.display = 'none';
             await handleApartmentDetected(apt);
-        } else if (geoAttempts >= GEO_MAX_ATTEMPTS) {
-            showManualApartmentPicker('We couldn’t get a precise fix. Please select your apartment below.');
-        } else {
-            geoAttempts += 1;
-            geoSection.innerHTML = `<p>Location accuracy is ±${Math.round(accuracy)} m. Retrying (${geoAttempts}/${GEO_MAX_ATTEMPTS})…</p>`;
+            return;
         }
+
+        const nextAttempt = geoAttempts + 1;
+        if (nextAttempt >= GEO_MAX_ATTEMPTS) {
+            showManualApartmentPicker('We still couldn’t get a precise fix. Enable “Precise location” in your settings or select your apartment below.');
+            return;
+        }
+
+        geoAttempts = nextAttempt;
+        geoSection.innerHTML = `<p>We got a location reading about ±${Math.round(accuracy)} m off. Turn on “Precise location” in your browser/OS settings, then click “Try location again” (${nextAttempt}/${GEO_MAX_ATTEMPTS}).</p>`;
+        geoSection.appendChild(retryGeoBtn);
+        retryGeoBtn.style.display = '';
     };
 
     const handleError = (err) => {
         console.warn('Geolocation error', err);
-        showManualApartmentPicker('Location access failed. Please allow location or pick your apartment below.');
+        showManualApartmentPicker('Location access failed. Allow location, then click “Try location again,” or pick your apartment below.');
     };
 
     navigator.geolocation.getCurrentPosition(handlePosition, handleError, geoOptions);
