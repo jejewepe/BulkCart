@@ -149,12 +149,14 @@
         <p id="product-detail-pricing"></p>
         <p id="product-detail-target"></p>
         <p id="product-detail-total"></p>
+        <p id="product-detail-remaining"></p>
+        <p id="product-detail-closing"></p>
         <p id="product-detail-link"></p>
         <h3>Joiners</h3>
         <ul id="product-detail-joiners" style="list-style:none; padding:0;"></ul>
         <ul style="font-size:0.95em; color:#666; margin-top:12px;">
-            <li>• <b>Serious Joiners</b> have deposited 20%</li>
-            <li>• <b>Interested</b> joiners have not deposit yet</li>
+            <li> <b>Serious Joiners</b> have deposited 20%</li>
+            <li> <b>Interested</b> joiners have not deposit yet</li>
         </ul>
     </section>
 </div>
@@ -777,10 +779,22 @@ function showProductDetail(order) {
     const detailSection = document.getElementById('product-detail-section');
     detailSection.style.display = '';
 
+    const totalJoined = Number(order.total) || 0;
+    const targetQty = Number(order.targetQuantity) || 0;
+    const remaining = Math.max(targetQty - totalJoined, 0);
+
     document.getElementById('product-detail-title').textContent = `Product Detail: ${order.product}`;
-    document.getElementById('product-detail-pricing').textContent = `Price: ${formatCurrency(order.productPrice)} | Bulk Price: ${formatCurrency(order.potentialBulkPrice)} per pcs`;
-    document.getElementById('product-detail-target').textContent = `Target quantity: ${Number(order.targetQuantity || 0).toLocaleString('en-US')} pcs`;
-    document.getElementById('product-detail-total').textContent = `Total bulk price: ${formatCurrency(order.bulkTotalPrice || 0)}`;
+    document.getElementById('product-detail-pricing').textContent =
+        `Price: ${formatCurrency(order.productPrice)} | Bulk Price: ${formatCurrency(order.potentialBulkPrice)} per pcs`;
+    document.getElementById('product-detail-target').textContent =
+        `Target quantity: ${targetQty.toLocaleString('en-US')} pcs`;
+    document.getElementById('product-detail-total').textContent =
+        `Current total joined: ${totalJoined.toLocaleString('en-US')} pcs`;
+    document.getElementById('product-detail-remaining').textContent =
+        `Still needed: ${remaining.toLocaleString('en-US')} pcs`;
+    document.getElementById('product-detail-closing').textContent =
+        `Closing time: ${order.closingTime || 'TBA'}`;
+
     const linkEl = document.getElementById('product-detail-link');
     if (order.ecommerceLink) {
         linkEl.innerHTML = `Reference: <a href="${order.ecommerceLink}" target="_blank" rel="noreferrer noopener">${order.ecommerceLink}</a>`;
@@ -806,10 +820,12 @@ function showProductDetail(order) {
     } else {
         order.participants.forEach(p => {
             const status = p.status || "Interested";
+            const qty = Number(p.quantity) || 0;
             joinersList.innerHTML += `
                 <li>
                     <span class="joiner-avatar"></span>
                     <span>${p.name}</span>
+                    <span>${qty} pcs</span>
                     <span class="joiner-status">${status}</span>
                 </li>
             `;
@@ -822,4 +838,5 @@ updatePotentialPreview();
 </script>
 </body>
 </html>
+
 
